@@ -9,12 +9,14 @@
   "description": "Automatically tracks and updates Cursor download links",
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "start": "bun src/update-cursor-links.ts",
     "update": "bun src/update-cursor-links.ts",
+    "readme": "bun src/update-readme-from-history.ts",
+    "backfill": "bun src/backfill-from-cursorhistory.ts",
+    "archives": "bun src/backfill-archives.ts",
+    "derive-win32": "bun src/derive-win32-links.ts",
     "test": "echo \"No tests specified\" && exit 0"
   },
-  "type": "module",
-  "dependencies": {
-    "csv-parse": "^7.0.2"
-  }
+  "type": "module"
 }

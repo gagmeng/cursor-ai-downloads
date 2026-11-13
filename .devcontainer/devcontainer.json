@@ -1,21 +1,16 @@
 {
   "name": "TypeScript + Bun Development",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "18"
-    }
-  },
+  "features": {},
   "customizations": {
     "vscode": {
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss",
         "oven.bun-vscode"
       ]
     }
   },
-  "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && npm install",
+  "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && ~/.bun/bin/bun install",
   "remoteUser": "node"
-} 
+}
