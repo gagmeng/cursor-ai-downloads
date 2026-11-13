@@ -1,0 +1,15 @@
+# 仓库内一律 LF；Windows 工作区由 core.autocrlf 决定，脚本不依赖工作区行尾
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.exe  binary
+*.dmg  binary
+*.zip  binary
+
+bun.lock                linguist-generated=true
+version-history.json    linguist-generated=true

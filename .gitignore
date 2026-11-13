@@ -18,6 +18,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Backups written by the update scripts
+*.backup
+*.tmp
+version-history.json.*
+README.md.*
+
 # Editor directories and files
 .idea/
 .vscode/*

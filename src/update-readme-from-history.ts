@@ -18,7 +18,9 @@ async function updateReadme() {
 
     // Read README content
     const readmePath = join(process.cwd(), 'README.md');
-    let readmeContent = await fs.readFile(readmePath, 'utf-8');
+    // Normalize to LF immediately: with core.autocrlf=true a Windows checkout is
+    // CRLF, and only replacing the marker regions would leave mixed line endings.
+    let readmeContent = (await fs.readFile(readmePath, 'utf-8')).replace(/\r\n?/g, '\n');
 
  // Create new download section
     // Center align columns 3-9 (download links)
@@ -52,8 +54,8 @@ async function updateReadme() {
     // Update both sections in README
     readmeContent = readmeContent.replace(/<!-- LATEST_VERSION_DETAILS_START -->[\s\S]*?<!-- LATEST_VERSION_DETAILS_END -->/g, `<!-- LATEST_VERSION_DETAILS_START -->\n${latestVersionContent}\n<!-- LATEST_VERSION_DETAILS_END -->`);
     readmeContent = readmeContent.replace(/<!-- TABLE_START -->[\s\S]*?<!-- TABLE_END -->/g, `<!-- TABLE_START -->\n${newTableContent}\n<!-- TABLE_END -->`);
-    const newReadmeContent = `${readmeContent.trim()}\n`;
-await fs.writeFile(readmePath, newReadmeContent);
+    const newReadmeContent = `${readmeContent.trimEnd()}\n`;
+await fs.writeFile(readmePath, newReadmeContent, 'utf8');
 console.log('README updated with new download links');
 } catch (error) {
 console.error('Error updating README:', error);
