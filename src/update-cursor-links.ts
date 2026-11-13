@@ -189,10 +189,12 @@ async function updateReadme(): Promise<boolean> {
     return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
   });
 
-  // Limit history size to 100 entries to prevent unlimited growth
-  if (history.versions.length > 100) {
-    history.versions = history.versions.slice(0, 100);
-    // console.log(`Truncated version history to 100 entries`); // Commented out for GH Action
+  // Guard against unbounded growth, but well above the real history size: the
+  // old limit of 100 silently discarded the oldest versions once the backfill
+  // brought the total to ~370.
+  const MAX_HISTORY = 1000;
+  if (history.versions.length > MAX_HISTORY) {
+    history.versions = history.versions.slice(0, MAX_HISTORY);
   }
 
   // IMPORTANT: Save the updated history JSON BEFORE updating the README
