@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const latestVersionDetailsDiv = document.getElementById('latest-version-details');
 
     // Define the path to the version history file in the GitHub repository
-    const historyUrl = 'https://raw.githubusercontent.com/shtse8/cursor-ai-downloads/main/version-history.json';
+    const historyUrl = 'https://raw.githubusercontent.com/gagmeng/cursor-ai-downloads/main/version-history.json';
 
     let allVersions = []; // To store all fetched versions for filtering
 

@@ -10,7 +10,7 @@ Cursor's website no longer offers. The links point to Cursor's own download
 servers; this repository stores no installers. A GitHub Actions job checks for
 a new version every hour.
 
-[![Update Cursor Links Workflow](https://github.com/shtse8/cursor-ai-downloads/actions/workflows/update-cursor-links.yml/badge.svg)](https://github.com/shtse8/cursor-ai-downloads/actions/workflows/update-cursor-links.yml)
+[![Update Cursor Links Workflow](https://github.com/gagmeng/cursor-ai-downloads/actions/workflows/update-cursor-links.yml/badge.svg)](https://github.com/gagmeng/cursor-ai-downloads/actions/workflows/update-cursor-links.yml)
 
 ---
 
@@ -29,7 +29,7 @@ a new version every hour.
 ---
 
 
-Search the full history on the [website](https://shtse8.github.io/cursor-ai-downloads/).
+Search the full history on the [website](https://gagmeng.github.io/cursor-ai-downloads/).
 
 ## Previous versions
 
