@@ -60,6 +60,14 @@ Search the full history on the [website](https://gagmeng.github.io/cursor-ai-dow
 
 *Note: Links point directly to the official Cursor download servers.*
 
+*The two Windows `(user)` columns are the per-user installers, which install
+without administrator rights; the unqualified Windows columns are the system
+installers.*
+
+*† The official download source for that version is offline. The † link points to
+an Internet Archive copy of the original binary; archived downloads may arrive
+without a file extension.*
+
 ---
 
 ## How it updates
