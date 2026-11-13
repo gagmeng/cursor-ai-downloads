@@ -28,6 +28,7 @@ import {
   urlExists,
   mapLimit,
   sortVersionsDesc,
+  SCHEMA_VERSION,
   type VersionHistory,
   type VersionHistoryEntry,
 } from './utils.js';
@@ -197,6 +198,7 @@ async function main(): Promise<void> {
   }
 
   sortVersionsDesc(history);
+  history.schemaVersion = SCHEMA_VERSION;
   const saved = saveVersionHistory(history, '.derive-backup');
   if (!saved) throw new Error('failed to save version-history.json');
   console.log(`Applied ${applied}/${changes.length} changes to version-history.json`);

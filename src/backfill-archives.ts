@@ -19,6 +19,7 @@ import {
   saveVersionHistory,
   urlExists,
   mapLimit,
+  SCHEMA_VERSION,
   type VersionHistoryEntry,
 } from './utils.js';
 import { DEAD_HOSTS, hostOf } from './platforms.js';
@@ -175,6 +176,7 @@ async function main(): Promise<void> {
     return;
   }
 
+  history.schemaVersion = SCHEMA_VERSION;
   if (!saveVersionHistory(history, '.archives-backup')) {
     throw new Error('failed to save version-history.json');
   }

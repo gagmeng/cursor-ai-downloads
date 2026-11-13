@@ -23,6 +23,7 @@ import {
   mapLimit,
   upsertVersion,
   formatDate,
+  SCHEMA_VERSION,
   type VersionHistoryEntry,
 } from './utils.js';
 import { fetchVersionIndex, fetchVersionLinks } from './cursorhistory.js';
@@ -158,6 +159,7 @@ async function main(): Promise<void> {
     }
   }
 
+  history.schemaVersion = SCHEMA_VERSION;
   if (!saveVersionHistory(history, '.backfill-backup')) {
     throw new Error('failed to save version-history.json');
   }
