@@ -105,6 +105,30 @@ header p {
     margin-top: 1rem; /* Add space above the table */
 }
 
+/* Internet Archive fallback marker next to a dead official download link */
+#version-table .arch {
+    font-size: 0.75rem;
+    color: var(--muted-color);
+    text-decoration: none;
+    margin-left: 0.15rem;
+    vertical-align: top;
+}
+
+#version-table .arch:hover {
+    color: var(--primary);
+}
+
+/* Cells with no download for that platform */
+#version-table td.missing {
+    color: var(--muted-color);
+}
+
+.table-note {
+    font-size: 0.8rem;
+    color: var(--muted-color);
+    margin-top: 0.75rem;
+}
+
 footer {
     margin-top: 2rem;
     padding-top: 1rem;

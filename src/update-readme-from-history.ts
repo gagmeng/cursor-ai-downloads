@@ -1,66 +1,88 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { parse } from 'csv-parse/sync';
+import type { VersionHistoryEntry } from './utils.js';
+import { COLUMNS } from './platforms.js';
 
-interface VersionHistory {
-  version: string;
-  date: string;
-  platforms: {
-    [key: string]: string;
-  };
-}
+// Download icon, relative to README.md at the repository root.
+const ICON_PATH = 'docs/assets/download.png';
 
-async function updateReadme() {
-  try {
-    // Read version history
-    const historyContent = await fs.readFile(join(process.cwd(), 'version-history.json'), 'utf-8');
-    const versionHistory: VersionHistory[] = JSON.parse(historyContent).versions;
+const CREATE_DOWNLOAD_LINK = (url: string | undefined, archive: string | undefined): string => {
+  if (!url) return '-';
+  const icon = `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${ICON_PATH}?raw=true" alt="Download" width="24" height="24"></a>`;
+  // The original host is dead but an Internet Archive copy exists: keep the
+  // official link visible in case it comes back, and mark the archival copy.
+  const dagger = archive
+    ? `<a href="${archive}" target="_blank" rel="noopener noreferrer" title="Official download no longer available; this link points to an Internet Archive copy">†</a>`
+    : '';
+  return icon + dagger;
+};
 
-    // Read README content
-    const readmePath = join(process.cwd(), 'README.md');
-    // Normalize to LF immediately: with core.autocrlf=true a Windows checkout is
-    // CRLF, and only replacing the marker regions would leave mixed line endings.
-    let readmeContent = (await fs.readFile(readmePath, 'utf-8')).replace(/\r\n?/g, '\n');
+async function updateReadme(): Promise<void> {
+  // Read version history
+  const historyContent = await fs.readFile(join(process.cwd(), 'version-history.json'), 'utf-8');
+  const versionHistory: VersionHistoryEntry[] = JSON.parse(historyContent).versions;
 
- // Create new download section
-    // Center align columns 3-9 (download links)
-    const tableHeader = '| Version | Date | macOS Universal | macOS Intel | macOS Apple Silicon | Windows x64 | Windows ARM64 | Linux x64 | Linux ARM64 |\n|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|';
-    // Use direct image path provided by user
-    const iconPath = 'assets/download.png'; // Relative to README.md at root
-    // Use HTML img tag within the link to control size in README rendering - Updated size to 24x24
-    const createDownloadLink = (url: string | undefined) => url ? `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${iconPath}?raw=true" alt="Download" width="24" height="24"></a>` : '-';
+  if (!Array.isArray(versionHistory) || versionHistory.length === 0) {
+    throw new Error('version-history.json contains no versions');
+  }
 
+  // Read README content
+  const readmePath = join(process.cwd(), 'README.md');
+  // Normalize to LF immediately: with core.autocrlf=true a Windows checkout is
+  // CRLF, and only replacing the marker regions would leave mixed line endings.
+  let readmeContent = (await fs.readFile(readmePath, 'utf-8')).replace(/\r\n?/g, '\n');
 
-    const downloadTable = versionHistory.slice(0, 20).map((entry) => {
-      const platforms = entry.platforms;
-      // Use image links, alignment is controlled by header separator
-      return `| ${entry.version} | ${entry.date} | ${createDownloadLink(platforms['darwin-universal'])} | ${createDownloadLink(platforms['darwin-x64'])} | ${createDownloadLink(platforms['darwin-arm64'])} | ${createDownloadLink(platforms['win32-x64'])} | ${createDownloadLink(platforms['win32-arm64'])} | ${createDownloadLink(platforms['linux-x64'])} | ${createDownloadLink(platforms['linux-arm64'])} |`;
-    }).join('\n');
-    const newDownloadSection = `## Download Links for Previous Versions\n\n${tableHeader}\n${downloadTable}`;
+  // Table header
+  const headerCells = ['Version', 'Date', ...COLUMNS.map((c) => c.label)];
+  const tableHeader = `| ${headerCells.join(' | ')} |\n|${[':---', ':---', ...COLUMNS.map(() => ':---:')].join('|')}|`;
 
-// Update README content if changed
-    const newTableContent = `${tableHeader}\n${downloadTable}`;
-    
-    // Update latest version details
-    const latestVersion = versionHistory[0];
-    const latestVersionContent = `
+  const downloadTable = versionHistory
+    .slice(0, 20)
+    .map((entry) => {
+      const cells = COLUMNS.map((c) =>
+        CREATE_DOWNLOAD_LINK(entry.platforms[c.key], entry.archives?.[c.key]),
+      );
+      return `| ${entry.version} | ${entry.date} | ${cells.join(' | ')} |`;
+    })
+    .join('\n');
+
+  const newTableContent = `${tableHeader}\n${downloadTable}`;
+
+  // Latest version details
+  const latestVersion = versionHistory[0];
+  const linkList = (group: 'mac' | 'win' | 'linux'): string =>
+    COLUMNS.filter((c) => c.group === group)
+      .map((c) => {
+        const url = latestVersion.platforms[c.key];
+        return url ? `[${c.label}](${url})` : '';
+      })
+      .filter(Boolean)
+      .join(' | ');
+
+  const latestVersionContent = `
 **Version:** ${latestVersion.version} (${latestVersion.date})
 
-*   **macOS:** ${latestVersion.platforms['darwin-universal'] ? `[macOS Universal](${latestVersion.platforms['darwin-universal']})` : ''} | ${latestVersion.platforms['darwin-x64'] ? `[macOS Intel](${latestVersion.platforms['darwin-x64']})` : ''} | ${latestVersion.platforms['darwin-arm64'] ? `[macOS Apple Silicon](${latestVersion.platforms['darwin-arm64']})` : ''}
-*   **Windows:** ${latestVersion.platforms['win32-x64'] ? `[Windows x64](${latestVersion.platforms['win32-x64']})` : ''} | ${latestVersion.platforms['win32-arm64'] ? `[Windows ARM64](${latestVersion.platforms['win32-arm64']})` : ''}
-*   **Linux:** ${latestVersion.platforms['linux-x64'] ? `[Linux x64](${latestVersion.platforms['linux-x64']})` : ''} | ${latestVersion.platforms['linux-arm64'] ? `[Linux ARM64](${latestVersion.platforms['linux-arm64']})` : ''}
+*   **macOS:** ${linkList('mac')}
+*   **Windows:** ${linkList('win')}
+*   **Linux:** ${linkList('linux')}
 `;
 
-    // Update both sections in README
-    readmeContent = readmeContent.replace(/<!-- LATEST_VERSION_DETAILS_START -->[\s\S]*?<!-- LATEST_VERSION_DETAILS_END -->/g, `<!-- LATEST_VERSION_DETAILS_START -->\n${latestVersionContent}\n<!-- LATEST_VERSION_DETAILS_END -->`);
-    readmeContent = readmeContent.replace(/<!-- TABLE_START -->[\s\S]*?<!-- TABLE_END -->/g, `<!-- TABLE_START -->\n${newTableContent}\n<!-- TABLE_END -->`);
-    const newReadmeContent = `${readmeContent.trimEnd()}\n`;
-await fs.writeFile(readmePath, newReadmeContent, 'utf8');
-console.log('README updated with new download links');
-} catch (error) {
-console.error('Error updating README:', error);
-process.exit(1);
-}
+  // Update both sections in README
+  readmeContent = readmeContent.replace(
+    /<!-- LATEST_VERSION_DETAILS_START -->[\s\S]*?<!-- LATEST_VERSION_DETAILS_END -->/g,
+    `<!-- LATEST_VERSION_DETAILS_START -->\n${latestVersionContent}\n<!-- LATEST_VERSION_DETAILS_END -->`,
+  );
+  readmeContent = readmeContent.replace(
+    /<!-- TABLE_START -->[\s\S]*?<!-- TABLE_END -->/g,
+    `<!-- TABLE_START -->\n${newTableContent}\n<!-- TABLE_END -->`,
+  );
+
+  const newReadmeContent = `${readmeContent.trimEnd()}\n`;
+  await fs.writeFile(readmePath, newReadmeContent, 'utf8');
+  console.log('README updated with new download links');
 }
 
-updateReadme();
+updateReadme().catch((error) => {
+  console.error('Error updating README:', error instanceof Error ? error.message : error);
+  process.exit(1);
+});

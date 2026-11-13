@@ -3,16 +3,96 @@ import * as path from 'path';
 
 // --- Type Definitions ---
 
+/** Where a version entry came from. Missing means 'api' (the legacy default). */
+export type VersionSource = 'api' | 'cursorhistory' | 'derived';
+
 export interface VersionHistoryEntry {
+  /** "X.Y.Z" — unique across the whole history. */
   version: string;
+  /** "YYYY-MM-DD" — date first seen; never overwritten for an existing entry. */
   date: string;
+  /**
+   * platform key -> download URL. Values are ALWAYS plain URL strings.
+   * `win32-x64-user` / `win32-arm64-user` are the User Installer variants.
+   */
   platforms: {
-    [platform: string]: string; // platform -> download URL
+    [platform: string]: string;
   };
+  /**
+   * Optional: platform key -> Internet Archive copy of the same download.
+   * Keys are always a subset of `platforms`. Only present for entries whose
+   * original host is dead.
+   */
+  archives?: {
+    [platform: string]: string;
+  };
+  /** Optional provenance marker; absent is treated as 'api'. */
+  source?: VersionSource;
 }
 
 export interface VersionHistory {
+  /** Absent on legacy files; treat as 1. */
+  schemaVersion?: number;
   versions: VersionHistoryEntry[];
+}
+
+/** Current on-disk schema version. */
+export const SCHEMA_VERSION = 2;
+
+// --- Version Utilities ---
+
+/** Compare two dotted numeric versions. Negative if a < b, 0 if equal. */
+export function compareVersions(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+/** True when the entry's version is already present in the history. */
+export function hasVersion(history: VersionHistory, version: string): boolean {
+  return history.versions.some((e) => e.version === version);
+}
+
+/**
+ * Insert an entry, or merge into an existing one without clobbering URLs that
+ * are already recorded. Keeps `versions` sorted newest-first.
+ * Returns 'added' | 'merged' | 'unchanged'.
+ */
+export function upsertVersion(
+  history: VersionHistory,
+  entry: VersionHistoryEntry,
+  opts: { overwriteExistingUrls?: boolean } = {},
+): 'added' | 'merged' | 'unchanged' {
+  const existing = history.versions.find((e) => e.version === entry.version);
+  if (!existing) {
+    history.versions.push(entry);
+    sortVersionsDesc(history);
+    return 'added';
+  }
+
+  let changed = false;
+  for (const [k, url] of Object.entries(entry.platforms)) {
+    if (!existing.platforms[k] || opts.overwriteExistingUrls) {
+      if (existing.platforms[k] !== url) {
+        existing.platforms[k] = url;
+        changed = true;
+      }
+    }
+  }
+  for (const [k, url] of Object.entries(entry.archives ?? {})) {
+    if (!existing.archives?.[k] || opts.overwriteExistingUrls) {
+      if (existing.archives?.[k] !== url) {
+        existing.archives = existing.archives ?? {};
+        existing.archives[k] = url;
+        changed = true;
+      }
+    }
+  }
+  if (changed) sortVersionsDesc(history);
+  return changed ? 'merged' : 'unchanged';
+}
+
+/** Sort entries newest-first, in place. */
+export function sortVersionsDesc(history: VersionHistory): void {
+  history.versions.sort((a, b) => compareVersions(b.version, a.version));
 }
 
 // --- Filesystem Utilities ---
@@ -168,18 +248,66 @@ export function formatDate(date: Date): string {
 // --- Other Utilities ---
 
 /**
- * Extract version from URL or filename
+ * Extract version from URL or filename.
+ *
+ * Fallback only: current Cursor download URLs carry no version in the file name
+ * (`.../production/<sha>/darwin/arm64/Cursor-darwin-arm64.dmg`), so the API's
+ * own `version` field is the primary source. The legacy naming this once
+ * matched (`CursorUserSetup-x64-1.2.3.exe`) is no longer produced, so its
+ * pattern was dropped rather than left to silently fail.
  */
 export function extractVersion(url: string): string {
-  // For Windows
-  const winMatch = url.match(/CursorUserSetup-[^-]+-([0-9.]+)\.exe/);
-  if (winMatch && winMatch[1]) return winMatch[1];
-
-  // For AppImage
-  const appImageMatch = url.match(/Cursor-([0-9.]+)-[^-]+\.(AppImage|dmg)/);
-   if (appImageMatch && appImageMatch[1]) return appImageMatch[1];
-
-  // Generic version pattern (fallback)
   const versionMatch = url.match(/([0-9]+\.[0-9]+\.[0-9]+)/);
   return versionMatch ? versionMatch[0] : 'Unknown';
+}
+
+// --- Network Utilities ---
+
+/**
+ * Check that a URL is downloadable, using a ranged GET.
+ *
+ * HEAD is deliberately avoided: several CDNs answer it with 403 even though the
+ * file is public. Only the response headers are read; the body is cancelled.
+ */
+export async function urlExists(url: string, timeoutMs = 15000): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-1023', 'User-Agent': 'cursor-downloads-tracker' },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    await res.body?.cancel();
+    return res.status === 200 || res.status === 206;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Run `fn` over `items` with at most `limit` promises in flight.
+ * Results keep the input order.
+ */
+export async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }

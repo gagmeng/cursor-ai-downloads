@@ -39,14 +39,16 @@
                 <table id="version-table" role="grid" style="display: none;"> <!-- Initially hidden -->
                     <thead>
                         <tr>
-                            <!-- Original multi-column headers -->
+                            <!-- Column order must match src/platforms.ts COLUMNS -->
                             <th>Version</th>
                             <th>Date</th>
                             <th>macOS Uni</th>
                             <th>macOS Intel</th>
                             <th>macOS Apple</th>
                             <th>Win x64</th>
+                            <th>Win x64 (user)</th>
                             <th>Win ARM64</th>
+                            <th>Win ARM64 (user)</th>
                             <th>Linux x64</th>
                             <th>Linux ARM64</th>
                         </tr>
@@ -57,6 +59,10 @@
                 </table>
             </div>
             <p id="no-results" style="display: none;">No versions found matching your search.</p>
+            <p class="table-note">
+                † The official download source is offline for this version; the † link points to an
+                Internet Archive copy of the original binary. Archived downloads may lack a file extension.
+            </p>
         </section>
 
         <footer>

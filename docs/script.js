@@ -13,15 +13,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Generates an HTML link string or 'N/A'.
-     * @param {string|undefined} url - The download URL.
+     * @param {string|undefined} url - The official download URL.
+     * @param {string|undefined} archive - Internet Archive copy, when the official host is dead.
      * @returns {string} HTML string for the link or 'N/A'.
      */
-    function createLinkCell(url) {
+    function createLinkCell(url, archive) {
         // Use image path within docs/assets, relative to docs/index.html
         const iconPath = 'assets/download.png';
-        // Set width and height to 24x24
-        const linkContent = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${iconPath}" alt="Download" width="24" height="24"></a>` : 'N/A';
-        return `<td>${linkContent}</td>`;
+        if (!url) {
+            return '<td class="missing">N/A</td>';
+        }
+        // Keep the official link visible even when it is dead: it may return,
+        // and the dagger already tells the reader this one is archival.
+        const link = `<a class="dl" href="${url}" target="_blank" rel="noopener noreferrer"><img src="${iconPath}" alt="Download" width="24" height="24"></a>`;
+        const dagger = archive
+            ? `<a class="arch" href="${archive}" target="_blank" rel="noopener noreferrer" title="Official download no longer available; this link points to an Internet Archive copy">†</a>`
+            : '';
+        return `<td>${link}${dagger}</td>`;
     }
 
      /**
@@ -60,7 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const winLinks = [
             createLatestLinkListItem(platforms['win32-x64'], 'Windows x64'),
-            createLatestLinkListItem(platforms['win32-arm64'], 'Windows ARM64')
+            createLatestLinkListItem(platforms['win32-x64-user'], 'Windows x64 (user)'),
+            createLatestLinkListItem(platforms['win32-arm64'], 'Windows ARM64'),
+            createLatestLinkListItem(platforms['win32-arm64-user'], 'Windows ARM64 (user)')
         ].filter(Boolean);
 
         const linuxLinks = [
@@ -104,20 +114,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         versions.forEach(entry => {
             const row = document.createElement('tr');
-            const { version, date, platforms } = entry;
+            const { version, date, platforms, archives } = entry;
             const displayDate = date || 'N/A';
+            const archiveOf = archives || {};
 
-            // Revert to creating individual cells for each platform/arch
+            // Column order must match src/platforms.ts COLUMNS
             row.innerHTML = `
                 <td>${version}</td>
                 <td>${displayDate}</td>
-                ${createLinkCell(platforms['darwin-universal'])}
-                ${createLinkCell(platforms['darwin-x64'])}
-                ${createLinkCell(platforms['darwin-arm64'])}
-                ${createLinkCell(platforms['win32-x64'])}
-                ${createLinkCell(platforms['win32-arm64'])}
-                ${createLinkCell(platforms['linux-x64'])}
-                ${createLinkCell(platforms['linux-arm64'])}
+                ${createLinkCell(platforms['darwin-universal'], archiveOf['darwin-universal'])}
+                ${createLinkCell(platforms['darwin-x64'], archiveOf['darwin-x64'])}
+                ${createLinkCell(platforms['darwin-arm64'], archiveOf['darwin-arm64'])}
+                ${createLinkCell(platforms['win32-x64'], archiveOf['win32-x64'])}
+                ${createLinkCell(platforms['win32-x64-user'], archiveOf['win32-x64-user'])}
+                ${createLinkCell(platforms['win32-arm64'], archiveOf['win32-arm64'])}
+                ${createLinkCell(platforms['win32-arm64-user'], archiveOf['win32-arm64-user'])}
+                ${createLinkCell(platforms['linux-x64'], archiveOf['linux-x64'])}
+                ${createLinkCell(platforms['linux-arm64'], archiveOf['linux-arm64'])}
             `;
             versionTableBody.appendChild(row);
         });
@@ -133,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         try {
-            const response = await fetch(historyUrl);
+            const response = await fetch(historyUrl, { cache: 'no-store' });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -163,8 +176,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error fetching or processing version history:', error);
             if (latestVersionDetailsDiv) latestVersionDetailsDiv.innerHTML = '<p>Error loading latest version details.</p>';
             if (versionTableBody) {
-                // Update colspan to match the original number of columns (Version + Date + 7 platforms = 9)
-                versionTableBody.innerHTML = `<tr><td colspan="9">Error loading version history. Please try again later.</td></tr>`;
+                // Update colspan to match the number of columns (Version + Date + 9 platforms = 11)
+                versionTableBody.innerHTML = `<tr><td colspan="11">Error loading version history. Please try again later.</td></tr>`;
                 versionTable.style.display = ''; // Show table to display error
             }
         } finally {
